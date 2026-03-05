@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import Fuse from "fuse.js";
 import type { Meme } from "../../shared/types";
 import { Header } from "./Header";
@@ -95,7 +94,7 @@ export function MainWindow() {
           setShowUpload(false);
           setEditMeme(null);
         } else {
-          getCurrentWindow().hide();
+          invoke("hide_window");
         }
         return;
       }

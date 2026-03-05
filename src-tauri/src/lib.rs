@@ -7,7 +7,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use arboard::Clipboard;
 use sha2::{Digest, Sha256};
-use tauri::menu::{MenuBuilder, MenuItemBuilder};
+use tauri::menu::{MenuBuilder, MenuItem, MenuItemBuilder};
 use tauri::tray::TrayIconBuilder;
 use tauri::Manager;
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
@@ -15,6 +15,9 @@ use uuid::Uuid;
 
 use crate::db::Database;
 use crate::models::{Category, Meme};
+
+/// Holds a reference to the tray "toggle" menu item so we can update its label.
+struct TrayToggleItem(MenuItem<tauri::Wry>);
 
 fn now_ms() -> i64 {
     SystemTime::now()
@@ -51,9 +54,11 @@ fn mime_from_ext(ext: &str) -> &'static str {
     }
 }
 
+/// Hides the main window and updates the tray menu label.
 #[tauri::command]
-fn hide_window(window: tauri::Window) {
+fn hide_window(app: tauri::AppHandle, window: tauri::Window) {
     let _ = window.hide();
+    update_tray_label(&app, false);
 }
 
 /// Reads a file and returns it as a base64 data URL for previewing in the webview.
@@ -283,14 +288,25 @@ fn cmd_copy_to_clipboard(app: tauri::AppHandle, id: String) -> Result<(), String
     Ok(())
 }
 
+/// Toggles the main window visibility and updates the tray menu label accordingly.
 fn toggle_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         if window.is_visible().unwrap_or(false) {
             let _ = window.hide();
+            update_tray_label(app, false);
         } else {
             let _ = window.show();
             let _ = window.set_focus();
+            update_tray_label(app, true);
         }
+    }
+}
+
+/// Updates the tray "toggle" menu item text to reflect current visibility.
+fn update_tray_label(app: &tauri::AppHandle, visible: bool) {
+    if let Some(state) = app.try_state::<TrayToggleItem>() {
+        let label = if visible { "Hide (Ctrl+Shift+M)" } else { "Show (Ctrl+Shift+M)" };
+        let _ = state.0.set_text(label);
     }
 }
 
@@ -341,7 +357,8 @@ pub fn run() {
             app.global_shortcut().register(shortcut)?;
 
             let toggle =
-                MenuItemBuilder::with_id("toggle", "Toggle (Ctrl+Shift+M)").build(app)?;
+                MenuItemBuilder::with_id("toggle", "Show (Ctrl+Shift+M)").build(app)?;
+            app.manage(TrayToggleItem(toggle.clone()));
             let quit = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
             let menu = MenuBuilder::new(app)
                 .items(&[&toggle, &quit])

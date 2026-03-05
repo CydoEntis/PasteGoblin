@@ -1,4 +1,5 @@
 import { Search, Upload, X } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
 import logo from "../../assets/logo.png";
 
 interface HeaderProps {
@@ -32,6 +33,9 @@ export function Header({ searchQuery, onSearchChange, memeCount, onUploadClick }
         <button className="btn btn-primary" onClick={onUploadClick}>
           <Upload size={14} />
           Upload
+        </button>
+        <button className="btn-close" onClick={() => invoke("hide_window")} title="Hide window">
+          <X size={16} />
         </button>
       </div>
     </div>
